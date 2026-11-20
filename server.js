@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 
@@ -119,7 +120,8 @@ app.post("/send", (req, res) => {
     const receiver = String(req.body.receiver || "").trim();
     const message = String(req.body.message || "").trim();
 
-    if (!sender  !receiver  !message) {
+    // تم تصحيح الخطأ هنا
+    if (!sender || !receiver || !message) {
         return res.status(400).json({
             success: false,
             message: "بيانات الرسالة غير مكتملة"
@@ -177,3 +179,19 @@ app.get("/messages", (req, res) => {
             message: "بيانات المحادثة غير مكتملة"
         });
     }
+
+    const conversation = messages.filter(msg =>
+        (msg.sender === user && msg.receiver === withUser) ||
+        (msg.sender === withUser && msg.receiver === user)
+    );
+
+    return res.json({
+        success: true,
+        messages: conversation
+    });
+});
+
+// تشغيل السيرفر
+app.listen(PORT, () => {
+    console.log(`SimpleChat Server is Running on port ${PORT}`);
+});

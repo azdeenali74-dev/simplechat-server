@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 
@@ -13,7 +12,7 @@ let users = [];
 let messages = [];
 let nextId = 1;
 
-// توحيد صيغة رقم الهاتف اليمني
+// توحيد رقم الهاتف اليمني
 function normalizePhone(phone) {
     if (!phone) return "";
 
@@ -34,10 +33,23 @@ function normalizePhone(phone) {
 
 // الصفحة الرئيسية
 app.get("/", (req, res) => {
-    res.send("SimpleChat Server is Running");
+    res.json({
+        success: true,
+        message: "SimpleChat Server is Running",
+        users: users.length,
+        messages: messages.length
+    });
 });
 
-// تسجيل مستخدم جديد
+// فحص حالة السيرفر
+app.get("/health", (req, res) => {
+    res.json({
+        success: true,
+        status: "online"
+    });
+});
+
+// تسجيل مستخدم
 app.post("/register", (req, res) => {
     const username = String(req.body.username || "").trim();
     const phone = normalizePhone(req.body.phone);
@@ -86,7 +98,7 @@ app.post("/register", (req, res) => {
     });
 });
 
-// البحث عن مستخدم بواسطة رقم الهاتف
+// البحث عن مستخدم برقم الهاتف
 app.get("/user", (req, res) => {
     const phone = normalizePhone(req.query.phone);
 
@@ -116,56 +128,65 @@ app.get("/user", (req, res) => {
 
 // إرسال رسالة
 app.post("/send", (req, res) => {
-    const sender = String(req.body.sender || "").trim();
-    const receiver = String(req.body.receiver || "").trim();
-    const message = String(req.body.message || "").trim();
+    try {
+        const sender = String(req.body.sender || "").trim();
+        const receiver = String(req.body.receiver || "").trim();
+        const messageText = String(req.body.message || "").trim();
 
-    // تم تصحيح الخطأ هنا
-    if (!sender || !receiver || !message) {
-        return res.status(400).json({
+        if (!sender || !receiver || !messageText) {
+            return res.status(400).json({
+                success: false,
+                message: "بيانات الرسالة غير مكتملة"
+            });
+        }
+
+        const senderUser = users.find(
+            user => user.username === sender
+        );
+
+        const receiverUser = users.find(
+            user => user.username === receiver
+        );
+
+        if (!senderUser) {
+            return res.status(404).json({
+                success: false,
+                message: "المرسل غير مسجل في السيرفر، أعد تسجيل الحساب"
+            });
+        }
+
+        if (!receiverUser) {
+            return res.status(404).json({
+                success: false,
+                message: "المستلم غير موجود في السيرفر"
+            });
+        }
+
+        const newMessage = {
+            id: nextId++,
+            sender: sender,
+            receiver: receiver,
+            senderPhone: senderUser.phone,
+            message: messageText,
+            time: new Date().toISOString()
+        };
+
+        messages.push(newMessage);
+
+        return res.status(200).json({
+            success: true,
+            message: newMessage,
+            data: newMessage
+        });
+
+    } catch (error) {
+        console.error("Send Error:", error);
+
+        return res.status(500).json({
             success: false,
-            message: "بيانات الرسالة غير مكتملة"
+            message: "حدث خطأ أثناء إرسال الرسالة"
         });
     }
-
-    const senderUser = users.find(
-        user => user.username === sender
-    );
-
-    const receiverUser = users.find(
-        user => user.username === receiver
-    );
-
-    if (!senderUser) {
-        return res.status(404).json({
-            success: false,
-            message: "المرسل غير موجود"
-        });
-    }
-
-    if (!receiverUser) {
-        return res.status(404).json({
-            success: false,
-            message: "المستلم غير موجود"
-        });
-    }
-
-    const newMessage = {
-        id: nextId++,
-        sender: sender,
-        receiver: receiver,
-        senderPhone: senderUser.phone,
-        message: message,
-        time: new Date().toISOString()
-    };
-
-    messages.push(newMessage);
-
-    return res.json({
-        success: true,
-        message: "تم إرسال الرسالة",
-        data: newMessage
-    });
 });
 
 // جلب الرسائل بين مستخدمين
@@ -191,7 +212,30 @@ app.get("/messages", (req, res) => {
     });
 });
 
+// صندوق الرسائل الواردة
+app.get("/inbox", (req, res) => {
+    const username = String(req.query.user || "").trim();
+
+    if (!username) {
+        return res.status(400).json({
+            success: false,
+            message: "اسم المستخدم مطلوب"
+        });
+    }
+
+    const inbox = messages.filter(
+        msg => msg.receiver === username
+    );
+
+    return res.json({
+        success: true,
+        messages: inbox
+    });
+});
+
 // تشغيل السيرفر
 app.listen(PORT, () => {
-    console.log(`SimpleChat Server is Running on port ${PORT}`);
+    console.log(
+        `SimpleChat Server is Running on port ${PORT}`
+    );
 });

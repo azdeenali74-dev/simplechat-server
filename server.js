@@ -1,3 +1,4 @@
+
 const express = require("express");
 const cors = require("cors");
 
@@ -115,7 +116,7 @@ app.post("/send", (req, res) => {
     const receiver = String(req.body.receiver || "").trim();
     const message = String(req.body.message || "").trim();
 
-    if (!sender  !receiver  !message) {
+    if (!sender || !receiver || !message) {
         return res.status(400).json({
             success: false,
             message: "بيانات الرسالة ناقصة"
